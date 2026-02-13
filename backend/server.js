@@ -20,6 +20,10 @@ app.use(express.urlencoded({ extended: false }));
 // Static folder for uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date(), message: 'Loan Advisor API is healthy' });
+});
+
 // Define Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/loans', require('./routes/loans'));
