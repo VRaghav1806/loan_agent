@@ -1,0 +1,11 @@
+{
+    "welcome": "Welcome to the Multilingual Loan Advisor!",
+    "how_can_i_help": "How can I help you today?",
+    "loan_eligibility": "I can help you check your loan eligibility.",
+    "loan_types": "We offer Personal, Home, Education, and Business loans.",
+    "income_low": "Your income is below the minimum required for this loan.",
+    "eligibility_success": "Great news! You are eligible for this loan.",
+    "apply_now": "Would you like to apply now?",
+    "login_required": "Please login to proceed with the application.",
+    "voice_hint": "Click the microphone button to speak."
+}

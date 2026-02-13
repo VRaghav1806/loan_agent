@@ -1,0 +1,14 @@
+[
+  {
+    "id": "698e7c3515dbfdc999db1cc0",
+    "name": "Raghav V",
+    "email": "raghavvenkat18@gmail.com",
+    "role": "agent"
+  },
+  {
+    "id": "698e93f8060e875ecded1586",
+    "name": "John",
+    "email": "john@example.com",
+    "role": "borrower"
+  }
+]
