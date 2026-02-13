@@ -1,19 +1,13 @@
 {
     "version": 2,
-    "functions": {
-        "backend/server.js": {
-            "memory": 1024,
-            "maxDuration": 25
-        }
-    },
     "rewrites": [
         {
             "source": "/api/:match*",
-            "destination": "backend/server.js"
+            "destination": "/api/index.js"
         },
         {
             "source": "/uploads/:match*",
-            "destination": "backend/uploads/:match*"
+            "destination": "/backend/uploads/:match*"
         },
         {
             "source": "/((?!api|uploads).*)",
