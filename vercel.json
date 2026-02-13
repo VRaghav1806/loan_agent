@@ -10,12 +10,11 @@
             "destination": "/backend/uploads/:match*"
         },
         {
-            "source": "/(.*)",
-            "destination": "/frontend/dist/$1",
-            "continue": true
+            "source": "/((?!api|uploads).+\\.[a-z0-9]+)$",
+            "destination": "/frontend/dist/$1"
         },
         {
-            "source": "/(.*)",
+            "source": "/((?!api|uploads).*)",
             "destination": "/frontend/dist/index.html"
         }
     ]
