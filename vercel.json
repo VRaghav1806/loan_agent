@@ -1,5 +1,12 @@
 {
     "version": 2,
+    "functions": {
+        "api/index.js": {
+            "memory": 1024,
+            "maxDuration": 25,
+            "includeFiles": "backend/locales/**"
+        }
+    },
     "rewrites": [
         {
             "source": "/api/:match*",
