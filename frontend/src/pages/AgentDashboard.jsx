@@ -510,7 +510,7 @@ const AgentDashboard = () => {
                                                 variant="outlined"
                                                 size="small"
                                                 startIcon={<FileText size={16} />}
-                                                onClick={() => window.open(`${api.defaults.baseURL.replace('/api', '')}/${doc.filePath.replace(/\\/g, '/')}`, '_blank')}
+                                                onClick={() => window.open(`${api.defaults.baseURL}/applications/documents/${doc.fileName}`, '_blank')}
                                                 sx={{ borderRadius: 2, textTransform: 'none' }}
                                             >
                                                 {doc.documentType?.toUpperCase()}

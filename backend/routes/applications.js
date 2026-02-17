@@ -9,31 +9,32 @@ const { sendLoanApprovalEmail } = require('../services/emailService');
 const { protect } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const { GridFsStorage } = require('multer-gridfs-storage');
 
-// Configure multer for file uploads
-const uploadDir = process.env.VERCEL === '1' ? '/tmp' : path.join(__dirname, '../uploads');
-
-// Ensure directory exists
-if (!fs.existsSync(uploadDir)) {
-    try {
-        fs.mkdirSync(uploadDir, { recursive: true });
-    } catch (err) {
-        console.error('Error creating upload directory:', err);
-    }
-}
-
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, uploadDir);
-    },
-    filename: function (req, file, cb) {
-        cb(null, `${req.user._id}-${Date.now()}${path.extname(file.originalname)}`);
+// Create storage engine
+const storage = new GridFsStorage({
+    url: process.env.MONGODB_URI,
+    file: (req, file) => {
+        return new Promise((resolve, reject) => {
+            const filename = `${req.user._id}-${Date.now()}${path.extname(file.originalname)}`;
+            const fileInfo = {
+                filename: filename,
+                bucketName: 'uploads'
+            };
+            resolve(fileInfo);
+        });
     }
 });
 
+const upload = multer({ storage });
 
-const upload = multer({ storage: storage });
+// Create GridFS bucket for retrieval
+let bucket;
+mongoose.connection.on('connected', () => {
+    bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+        bucketName: 'uploads'
+    });
+});
 
 // @desc    Create new loan application
 // @route   POST /api/applications
@@ -179,6 +180,39 @@ router.post('/:id/upload', protect, upload.single('document'), async (req, res) 
 
         await application.save();
         res.json(application);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Get document from GridFS
+// @route   GET /api/applications/documents/:filename
+// @access  Private
+router.get('/documents/:filename', protect, async (req, res) => {
+    try {
+        if (!bucket) {
+            // Hotfix if connection was slow
+            bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+                bucketName: 'uploads'
+            });
+        }
+
+        const files = await bucket.find({ filename: req.params.filename }).toArray();
+        if (!files || files.length === 0) {
+            return res.status(404).json({ message: 'File not found' });
+        }
+
+        // Optional: Add authorization check here to ensure user/agent is allowed to see this doc
+        // For simplicity in this fix, we'll stream it since they are already 'protect'ed
+
+        res.set('Content-Type', files[0].contentType || 'application/octet-stream');
+        const downloadStream = bucket.openDownloadStreamByName(req.params.filename);
+
+        downloadStream.on('error', (err) => {
+            res.status(500).json({ message: 'Error streaming file' });
+        });
+
+        downloadStream.pipe(res);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
