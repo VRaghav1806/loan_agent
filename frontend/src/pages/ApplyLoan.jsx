@@ -87,23 +87,32 @@ const ApplyLoan = () => {
 
             const applicationId = application._id;
 
-            // 2. Upload Documents
-            const uploadDocument = async (file, type) => {
+            // 2. Upload Documents SEQUENTIALLY to prevent 504 timeouts on serverless
+            if (files.identity) {
                 const uploadData = new FormData();
-                uploadData.append('document', file);
-                uploadData.append('documentType', type);
+                uploadData.append('document', files.identity);
+                uploadData.append('documentType', 'identity');
                 await api.post(`/applications/${applicationId}/upload`, uploadData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
-            };
+            }
 
-            const uploadPromises = [];
-            if (files.identity) uploadPromises.push(uploadDocument(files.identity, 'identity'));
-            if (files.address) uploadPromises.push(uploadDocument(files.address, 'address'));
-            if (files.income) uploadPromises.push(uploadDocument(files.income, 'income'));
+            if (files.address) {
+                const uploadData = new FormData();
+                uploadData.append('document', files.address);
+                uploadData.append('documentType', 'address');
+                await api.post(`/applications/${applicationId}/upload`, uploadData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+            }
 
-            if (uploadPromises.length > 0) {
-                await Promise.all(uploadPromises);
+            if (files.income) {
+                const uploadData = new FormData();
+                uploadData.append('document', files.income);
+                uploadData.append('documentType', 'income');
+                await api.post(`/applications/${applicationId}/upload`, uploadData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
             }
 
             navigate('/dashboard');
@@ -117,6 +126,13 @@ const ApplyLoan = () => {
     const handleFileChange = (e, type) => {
         const file = e.target.files[0];
         if (file) {
+            // Vercel body size limit check (approx 4.5MB total)
+            if (file.size > 4 * 1024 * 1024) {
+                alert(t('apply.file_too_large') || 'File is too large. Max 4MB allowed.');
+                e.target.value = ''; // Reset input
+                return;
+            }
+
             setFiles(prev => ({ ...prev, [type]: file }));
             setFormData(prev => ({
                 ...prev,
