@@ -13,7 +13,7 @@ const { GridFsStorage } = require('multer-gridfs-storage');
 
 // Create storage engine
 const storage = new GridFsStorage({
-    url: process.env.MONGODB_URI,
+    db: mongoose.connection.asPromise().then(conn => conn.db),
     file: (req, file) => {
         return new Promise((resolve, reject) => {
             const filename = `${req.user._id}-${Date.now()}${path.extname(file.originalname)}`;
@@ -30,11 +30,16 @@ const upload = multer({ storage });
 
 // Create GridFS bucket for retrieval
 let bucket;
-mongoose.connection.on('connected', () => {
-    bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+const initBucket = async () => {
+    if (bucket) return bucket;
+    const conn = await mongoose.connection.asPromise();
+    bucket = new mongoose.mongo.GridFSBucket(conn.db, {
         bucketName: 'uploads'
     });
-});
+    return bucket;
+};
+// Initialize on start, but will also check in routes
+initBucket().catch(console.error);
 
 // @desc    Create new loan application
 // @route   POST /api/applications
@@ -190,12 +195,7 @@ router.post('/:id/upload', protect, upload.single('document'), async (req, res) 
 // @access  Private
 router.get('/documents/:filename', protect, async (req, res) => {
     try {
-        if (!bucket) {
-            // Hotfix if connection was slow
-            bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
-                bucketName: 'uploads'
-            });
-        }
+        await initBucket();
 
         const files = await bucket.find({ filename: req.params.filename }).toArray();
         if (!files || files.length === 0) {
