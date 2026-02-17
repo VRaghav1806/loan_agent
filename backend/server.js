@@ -43,4 +43,13 @@ if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
     });
 }
 
+// Error Handler
+app.use((err, req, res, next) => {
+    console.error('SERVER ERROR:', err.stack);
+    res.status(500).json({
+        message: err.message || 'Internal Server Error',
+        error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+});
+
 module.exports = app;

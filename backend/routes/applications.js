@@ -9,37 +9,27 @@ const { sendLoanApprovalEmail } = require('../services/emailService');
 const { protect } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
-const { GridFsStorage } = require('multer-gridfs-storage');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
-// Create storage engine
-const storage = new GridFsStorage({
-    db: mongoose.connection.asPromise().then(conn => conn.db),
-    file: (req, file) => {
-        return new Promise((resolve, reject) => {
-            const filename = `${req.user._id}-${Date.now()}${path.extname(file.originalname)}`;
-            const fileInfo = {
-                filename: filename,
-                bucketName: 'uploads'
-            };
-            resolve(fileInfo);
-        });
+// Cloudinary Configuration
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Create Cloudinary storage engine
+const storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'loan_advisor_documents',
+        allowed_formats: ['jpg', 'png', 'pdf', 'jpeg'],
+        resource_type: 'auto'
     }
 });
 
 const upload = multer({ storage });
-
-// Create GridFS bucket for retrieval
-let bucket;
-const initBucket = async () => {
-    if (bucket) return bucket;
-    const conn = await mongoose.connection.asPromise();
-    bucket = new mongoose.mongo.GridFSBucket(conn.db, {
-        bucketName: 'uploads'
-    });
-    return bucket;
-};
-// Initialize on start, but will also check in routes
-initBucket().catch(console.error);
 
 // @desc    Create new loan application
 // @route   POST /api/applications
@@ -178,8 +168,8 @@ router.post('/:id/upload', protect, upload.single('document'), async (req, res) 
 
         application.documents.push({
             documentType: req.body.documentType,
-            fileName: req.file.filename,
-            filePath: `uploads/${req.file.filename}`
+            fileName: req.file.originalname,
+            filePath: req.file.path // This is the public Cloudinary URL
         });
 
 
@@ -190,33 +180,6 @@ router.post('/:id/upload', protect, upload.single('document'), async (req, res) 
     }
 });
 
-// @desc    Get document from GridFS
-// @route   GET /api/applications/documents/:filename
-// @access  Private
-router.get('/documents/:filename', protect, async (req, res) => {
-    try {
-        await initBucket();
-
-        const files = await bucket.find({ filename: req.params.filename }).toArray();
-        if (!files || files.length === 0) {
-            return res.status(404).json({ message: 'File not found' });
-        }
-
-        // Optional: Add authorization check here to ensure user/agent is allowed to see this doc
-        // For simplicity in this fix, we'll stream it since they are already 'protect'ed
-
-        res.set('Content-Type', files[0].contentType || 'application/octet-stream');
-        const downloadStream = bucket.openDownloadStreamByName(req.params.filename);
-
-        downloadStream.on('error', (err) => {
-            res.status(500).json({ message: 'Error streaming file' });
-        });
-
-        downloadStream.pipe(res);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
 
 // @desc    Delete a loan application
 // @route   DELETE /api/applications/:id
