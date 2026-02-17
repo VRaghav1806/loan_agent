@@ -58,11 +58,18 @@ router.post('/register', async (req, res) => {
 // @access  Public
 router.post('/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, role } = req.body;
 
         const user = await User.findOne({ email });
 
         if (user && (await user.comparePassword(password))) {
+            // Check if user's role matches the requested role
+            if (role && user.role !== role) {
+                return res.status(401).json({
+                    message: `User not found for ${role} portal. (This account is registered as ${user.role})`
+                });
+            }
+
             res.json({
                 _id: user.id,
                 name: user.name,

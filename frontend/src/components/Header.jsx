@@ -81,29 +81,40 @@ const Header = ({ onMenuClick }) => {
                                 letterSpacing: -0.5,
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: 1
+                                gap: 1,
+                                fontSize: { xs: '1.2rem', sm: '1.5rem' }
                             }}
                         >
-                            {user?.role === 'agent' ? t('nav.agent_portal') : t('nav.loan_advisor')}
+                            {user?.role === 'agent' ? (
+                                <>
+                                    <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>{t('nav.agent_portal')}</Box>
+                                    <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Agent</Box>
+                                </>
+                            ) : (
+                                <>
+                                    <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>{t('nav.loan_advisor')}</Box>
+                                    <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>{t('common.app_name') || 'LoanAdvisor'}</Box>
+                                </>
+                            )}
                         </Typography>
                         {isChatPage && (
-                            <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 600, display: { xs: 'none', sm: 'block' } }}>
+                            <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 600, display: { xs: 'none', md: 'block' } }}>
                                 | {t('nav.advisor_chat')}
                             </Typography>
                         )}
                         {isAgentDashboard && (
-                            <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 600, display: { xs: 'none', sm: 'block' } }}>
+                            <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 600, display: { xs: 'none', md: 'block' } }}>
                                 | {t('nav.agent_workspace')}
                             </Typography>
                         )}
                         {isBorrowerDashboard && (
-                            <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 600, display: { xs: 'none', sm: 'block' } }}>
+                            <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 600, display: { xs: 'none', md: 'block' } }}>
                                 | {t('nav.dashboard')}
                             </Typography>
                         )}
                     </Stack>
 
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, md: 2 } }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1, md: 2 } }}>
                         {isChatPage && (
                             <Tooltip title={t('nav.clear_chat')}>
                                 <IconButton onClick={handleClearChat} color="warning" sx={{ bgcolor: 'rgba(255, 152, 0, 0.1)', '&:hover': { bgcolor: 'rgba(255, 152, 0, 0.2)' } }}>

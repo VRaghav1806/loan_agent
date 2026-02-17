@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider, createTheme, responsiveFontSizes } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
@@ -17,7 +17,7 @@ import ApplyLoan from './pages/ApplyLoan';
 import EMICalculator from './pages/EMICalculator';
 import LoanComparison from './pages/LoanComparison';
 
-const theme = createTheme({
+let theme = createTheme({
   palette: {
     primary: {
       main: '#1a237e',
@@ -30,11 +30,25 @@ const theme = createTheme({
       dark: '#8c0032',
     },
     background: {
-      default: '#f5f5f5',
+      default: '#f8fafc',
     },
   },
   typography: {
     fontFamily: '"Outfit", "Roboto", "Helvetica", "Arial", sans-serif',
+    h2: {
+      fontWeight: 900,
+      letterSpacing: '-1px',
+    },
+    h4: {
+      fontWeight: 800,
+      letterSpacing: '-0.5px',
+    },
+    h5: {
+      fontWeight: 700,
+    },
+    h6: {
+      fontWeight: 700,
+    },
   },
   components: {
     MuiButton: {
@@ -43,6 +57,10 @@ const theme = createTheme({
           borderRadius: 12,
           textTransform: 'none',
           fontWeight: 600,
+          boxShadow: 'none',
+          '&:hover': {
+            boxShadow: 'none',
+          },
         },
       },
     },
@@ -50,11 +68,24 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 16,
+          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+        },
+      },
+    },
+    MuiContainer: {
+      styleOverrides: {
+        root: {
+          '@media (max-width:600px)': {
+            paddingLeft: 20,
+            paddingRight: 20,
+          },
         },
       },
     },
   },
 });
+
+theme = responsiveFontSizes(theme);
 
 const PrivateRoute = ({ children, roles }) => {
   const { user, loading } = useAuth();

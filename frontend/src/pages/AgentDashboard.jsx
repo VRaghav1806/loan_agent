@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import {
     Users, TrendingUp, CheckCircle, Clock, Plus, ExternalLink,
-    MessageSquare, BadgeCheck, Trash2
+    MessageSquare, BadgeCheck, Trash2, FileText
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,6 +21,9 @@ const AgentDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [showLeadModal, setShowLeadModal] = useState(false);
     const [showLoanModal, setShowLoanModal] = useState(false);
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [selectedApplication, setSelectedApplication] = useState(null);
+    const [actionLoading, setActionLoading] = useState(false);
     const [submittingLead, setSubmittingLead] = useState(false);
     const [submittingLoan, setSubmittingLoan] = useState(false);
     const [leadData, setLeadData] = useState({
@@ -100,6 +103,23 @@ const AgentDashboard = () => {
         }
     };
 
+    const handleUpdateStatus = async (appId, status) => {
+        if (!window.confirm(`Are you sure you want to ${status} this application?`)) return;
+        setActionLoading(true);
+        try {
+            await api.put(`/applications/${appId}/status`, { status });
+            alert(`Application ${status} successfully`);
+            setShowReviewModal(false);
+            // Refresh dashboard
+            const dashRes = await api.get('/agents/dashboard');
+            setData(dashRes.data);
+        } catch (err) {
+            alert(err.response?.data?.message || `Failed to ${status} application`);
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     const getStatusColor = (status) => {
         const colors = {
             'submitted': 'info',
@@ -127,9 +147,9 @@ const AgentDashboard = () => {
     }
 
     return (
-        <Container maxWidth="lg" sx={{ py: 6 }}>
+        <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
             {/* Stats Cards */}
-            <Grid container spacing={4} sx={{ mb: 6 }}>
+            <Grid container spacing={{ xs: 2, md: 4 }} sx={{ mb: 6 }}>
                 {[
                     { label: t('agent.total_leads'), value: data?.stats?.totalLeads, icon: <Users size={32} />, color: '#3949ab' },
                     { label: t('agent.accepted_loans'), value: data?.stats?.approvedLeads, icon: <CheckCircle size={32} />, color: '#43a047' },
@@ -170,7 +190,8 @@ const AgentDashboard = () => {
                     {t('agent.add_loan_btn')}
                 </Button>
             </Stack>
-            <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 4, border: '1px solid #edf2f7', overflow: 'hidden' }}>
+            {/* Desktop View: Table */}
+            <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 4, border: '1px solid #edf2f7', overflow: 'hidden', display: { xs: 'none', md: 'block' } }}>
                 <Table>
                     <TableHead>
                         <TableRow sx={{ bgcolor: '#f8fafc' }}>
@@ -214,7 +235,15 @@ const AgentDashboard = () => {
                                     <TableCell align="right">
                                         <Stack direction="row" spacing={1} justifyContent="flex-end">
                                             <Tooltip title="View Details">
-                                                <IconButton size="small"><ExternalLink size={18} /></IconButton>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => {
+                                                        setSelectedApplication(lead);
+                                                        setShowReviewModal(true);
+                                                    }}
+                                                >
+                                                    <ExternalLink size={18} />
+                                                </IconButton>
                                             </Tooltip>
                                             <Tooltip title="Delete Lead">
                                                 <IconButton
@@ -233,6 +262,80 @@ const AgentDashboard = () => {
                     </TableBody>
                 </Table>
             </TableContainer>
+
+            {/* Mobile View: Cards */}
+            <Stack spacing={2} sx={{ display: { xs: 'flex', md: 'none' } }}>
+                {data?.leads?.length === 0 ? (
+                    <Paper sx={{ py: 6, px: 3, textAlign: 'center', borderRadius: 4, bgcolor: '#f8fafc', border: '1px dashed #e2e8f0' }}>
+                        <Typography color="text.secondary">{t('agent.no_leads')}</Typography>
+                    </Paper>
+                ) : (
+                    data?.leads?.map((lead) => (
+                        <Card key={lead._id} elevation={0} sx={{ borderRadius: 4, border: '1px solid #edf2f7', bgcolor: 'white' }}>
+                            <CardContent sx={{ p: 2 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                                    <Stack direction="row" spacing={1.5} alignItems="center">
+                                        <Avatar sx={{ width: 36, height: 36, fontSize: '0.9rem' }}>
+                                            {lead.user?.name ? lead.user.name[0] : '?'}
+                                        </Avatar>
+                                        <Box>
+                                            <Typography variant="body2" fontWeight="700">{lead.user?.name || 'Unknown'}</Typography>
+                                            <Typography variant="caption" color="text.secondary">{lead.user?.phone || 'N/A'}</Typography>
+                                        </Box>
+                                    </Stack>
+                                    <Chip
+                                        label={t(`dashboard.status_${lead.status.replace('-', '_')}`) || lead.status.replace('-', ' ').toUpperCase()}
+                                        size="small"
+                                        color={getStatusColor(lead.status)}
+                                    />
+                                </Box>
+
+                                <Box sx={{ mb: 2 }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                        {t('agent.table_loan_type')}
+                                    </Typography>
+                                    <Typography variant="body2" fontWeight="600">
+                                        {lead.loan?.name?.[lang] || lead.loan?.name?.en || 'Personal Loan'}
+                                    </Typography>
+                                </Box>
+
+                                <Box sx={{ mb: 2 }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                        {t('agent.table_amount')}
+                                    </Typography>
+                                    <Typography variant="h6" fontWeight="800" color="primary.main">
+                                        ₹{lead.requestedAmount.toLocaleString()}
+                                    </Typography>
+                                </Box>
+
+                                <Divider sx={{ my: 1.5, borderStyle: 'dashed' }} />
+
+                                <Stack direction="row" spacing={2}>
+                                    <Button
+                                        variant="contained"
+                                        fullWidth
+                                        startIcon={<ExternalLink size={16} />}
+                                        onClick={() => {
+                                            setSelectedApplication(lead);
+                                            setShowReviewModal(true);
+                                        }}
+                                        sx={{ borderRadius: 2 }}
+                                    >
+                                        Review
+                                    </Button>
+                                    <IconButton
+                                        color="error"
+                                        onClick={() => handleDeleteLead(lead._id)}
+                                        sx={{ bgcolor: 'rgba(211, 47, 47, 0.05)', borderRadius: 2, p: 1 }}
+                                    >
+                                        <Trash2 size={20} />
+                                    </IconButton>
+                                </Stack>
+                            </CardContent>
+                        </Card>
+                    ))
+                )}
+            </Stack>
 
             {/* Add Loan Modal */}
             <Modal
@@ -352,6 +455,98 @@ const AgentDashboard = () => {
                             </Button>
                         </Stack>
                     </form>
+                </Paper>
+            </Modal>
+            {/* Review Application Modal */}
+            <Modal
+                open={showReviewModal}
+                onClose={() => setShowReviewModal(false)}
+                sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+                <Paper sx={{ width: '100%', maxWidth: 700, p: 4, borderRadius: 4, maxHeight: '90vh', overflowY: 'auto' }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+                        <Typography variant="h5" fontWeight="800" color="primary">
+                            Review Loan Application
+                        </Typography>
+                        <Chip
+                            label={selectedApplication?.status?.toUpperCase()}
+                            color={getStatusColor(selectedApplication?.status)}
+                            size="small"
+                        />
+                    </Stack>
+
+                    {selectedApplication && (
+                        <Grid container spacing={4}>
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>Borrower Information</Typography>
+                                <Paper sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
+                                    <Typography variant="body2" fontWeight="600">{selectedApplication.user?.name}</Typography>
+                                    <Typography variant="body2">{selectedApplication.user?.email}</Typography>
+                                    <Typography variant="body2">{selectedApplication.user?.phone}</Typography>
+                                    <Divider sx={{ my: 1.5 }} />
+                                    <Typography variant="body2">Age: {selectedApplication.borrowerAge}</Typography>
+                                    <Typography variant="body2">Monthly Income: ₹{selectedApplication.monthlyIncome?.toLocaleString()}</Typography>
+                                    <Typography variant="body2">Credit Score: {selectedApplication.creditScore}</Typography>
+                                </Paper>
+                            </Grid>
+
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>Loan Details</Typography>
+                                <Paper sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
+                                    <Typography variant="body2" fontWeight="600">{selectedApplication.loan?.name?.[lang] || selectedApplication.loan?.name?.en}</Typography>
+                                    <Typography variant="body2">Amount: ₹{selectedApplication.requestedAmount?.toLocaleString()}</Typography>
+                                    <Typography variant="body2">Tenure: {selectedApplication.requestedTenure} months</Typography>
+                                    <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>Purpose: {selectedApplication.purpose}</Typography>
+                                </Paper>
+                            </Grid>
+
+                            <Grid size={{ xs: 12 }}>
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>Uploaded Documents</Typography>
+                                <Stack direction="row" spacing={2}>
+                                    {selectedApplication.documents?.length > 0 ? (
+                                        selectedApplication.documents.map((doc, idx) => (
+                                            <Button
+                                                key={idx}
+                                                variant="outlined"
+                                                size="small"
+                                                startIcon={<FileText size={16} />}
+                                                onClick={() => window.open(`${api.defaults.baseURL.replace('/api', '')}/${doc.filePath.replace(/\\/g, '/')}`, '_blank')}
+                                                sx={{ borderRadius: 2, textTransform: 'none' }}
+                                            >
+                                                {doc.documentType?.toUpperCase()}
+                                            </Button>
+                                        ))
+                                    ) : (
+                                        <Typography variant="body2" color="text.secondary">No documents uploaded</Typography>
+                                    )}
+                                </Stack>
+                            </Grid>
+
+                            {(selectedApplication.status === 'submitted' || selectedApplication.status === 'under-review') && (
+                                <Grid size={{ xs: 12 }}>
+                                    <Divider sx={{ my: 2 }} />
+                                    <Stack direction="row" spacing={2} justifyContent="flex-end">
+                                        <Button
+                                            variant="outlined"
+                                            color="error"
+                                            disabled={actionLoading}
+                                            onClick={() => handleUpdateStatus(selectedApplication._id, 'rejected')}
+                                        >
+                                            Reject
+                                        </Button>
+                                        <Button
+                                            variant="contained"
+                                            color="success"
+                                            disabled={actionLoading}
+                                            onClick={() => handleUpdateStatus(selectedApplication._id, 'approved')}
+                                        >
+                                            {actionLoading ? 'Processing...' : 'Approve Loan'}
+                                        </Button>
+                                    </Stack>
+                                </Grid>
+                            )}
+                        </Grid>
+                    )}
                 </Paper>
             </Modal>
         </Container>

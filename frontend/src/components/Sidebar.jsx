@@ -35,7 +35,8 @@ const Sidebar = ({ open, onClose }) => {
             onClose={onClose}
             PaperProps={{
                 sx: {
-                    width: 280,
+                    width: { xs: '85%', sm: 280 },
+                    maxWidth: 300,
                     bgcolor: 'white',
                     borderRight: 'none',
                     boxShadow: '4px 0 10px rgba(0,0,0,0.05)'

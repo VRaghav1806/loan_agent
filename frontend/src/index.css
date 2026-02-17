@@ -36,6 +36,7 @@ body {
   opacity: 0;
   transform: translateY(20px);
 }
+
 .page-enter-active {
   opacity: 1;
   transform: translateY(0);
@@ -46,13 +47,40 @@ body {
 ::-webkit-scrollbar {
   width: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: #f1f1f1;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #ccc;
   border-radius: 10px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #bbb;
+}
+
+@media (min-width: 600px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+@media (max-width: 599px) {
+  .desktop-only {
+    display: none !important;
+  }
+
+  /* Optimize touch targets for mobile */
+  button,
+  [role="button"],
+  .MuiButton-root {
+    min-height: 44px;
+  }
+}
+
+/* Safe area padding for modern mobile devices */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }

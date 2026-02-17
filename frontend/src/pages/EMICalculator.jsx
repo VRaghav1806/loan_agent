@@ -40,8 +40,8 @@ const EMICalculator = () => {
     ];
 
     return (
-        <Container maxWidth="lg" sx={{ py: 6 }}>
-            <Typography variant="h4" fontWeight={900} gutterBottom sx={{ color: 'primary.main', mb: 4 }}>
+        <Container maxWidth="lg" sx={{ py: { xs: 4, md: 8 } }}>
+            <Typography variant="h4" fontWeight={900} gutterBottom sx={{ color: 'primary.main', mb: 4, fontSize: { xs: '2rem', md: '2.125rem' } }}>
                 {t('emi.title')}
             </Typography>
 

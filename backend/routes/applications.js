@@ -56,15 +56,8 @@ router.post('/', protect, async (req, res) => {
             return res.status(404).json({ message: 'Loan product not found' });
         }
 
-        // Automatic Approval Logic
+        // All new applications now go to 'submitted' for manual review
         const crit = loanData.eligibilityCriteria;
-        const ageValid = borrowerAge >= crit.minAge && (crit.maxAge ? borrowerAge <= crit.maxAge : true);
-        const incomeValid = monthlyIncome >= crit.minIncome;
-        const creditValid = creditScore >= (crit.minCreditScore || 0);
-        const docsValid = requirementsMet && requirementsMet.identityVerified && requirementsMet.incomeVerified;
-
-        const isApproved = ageValid && incomeValid && creditValid && docsValid;
-
         const application = await LoanApplication.create({
             user: req.user._id,
             loan: loanId,
@@ -77,25 +70,67 @@ router.post('/', protect, async (req, res) => {
             hasCollateral,
             collateralDetails,
             requirementsMet,
-            status: isApproved ? 'approved' : 'submitted',
+            status: 'submitted', // Manual review required
             eligibilityDetails: {
-                ageEligible: ageValid,
-                incomeEligible: incomeValid,
-                creditScoreEligible: creditValid,
-                employmentEligible: true, // Simplified for now
+                ageEligible: borrowerAge >= crit.minAge && (crit.maxAge ? borrowerAge <= crit.maxAge : true),
+                incomeEligible: monthlyIncome >= crit.minIncome,
+                creditScoreEligible: creditScore >= (crit.minCreditScore || 0),
+                employmentEligible: true,
                 existingLoansEligible: true
             }
         });
 
-        // Send email if approved
-        if (isApproved) {
-            // req.user might not have all details if it's just from protect middleware
-            // but usually it's populated there. 
-            sendLoanApprovalEmail(application, req.user, loanData);
-        }
-
         res.status(201).json(application);
 
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Update application status (Approve/Reject)
+// @route   PUT /api/applications/:id/status
+// @access  Private (Agent/Admin only)
+router.put('/:id/status', protect, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin' && req.user.role !== 'agent') {
+            return res.status(403).json({ message: 'Not authorized' });
+        }
+
+        const { status, remarks } = req.body;
+        if (!['approved', 'rejected', 'under-review'].includes(status)) {
+            return res.status(400).json({ message: 'Invalid status' });
+        }
+
+        const application = await LoanApplication.findById(req.params.id)
+            .populate('user', 'name email phone')
+            .populate('loan', 'name interestRate');
+
+        if (!application) {
+            return res.status(404).json({ message: 'Application not found' });
+        }
+
+        application.status = status;
+        if (remarks) {
+            application.remarks.push({
+                message: remarks,
+                createdBy: req.user.name || req.user.email
+            });
+        }
+
+        await application.save();
+
+        // Send email notification on approval
+        if (status === 'approved') {
+            try {
+                const Loan = require('../models/Loan');
+                const loanData = await Loan.findById(application.loan);
+                sendLoanApprovalEmail(application, application.user, loanData);
+            } catch (emailErr) {
+                console.error('Email notification failed:', emailErr);
+            }
+        }
+
+        res.json(application);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -138,7 +173,7 @@ router.post('/:id/upload', protect, upload.single('document'), async (req, res) 
         application.documents.push({
             documentType: req.body.documentType,
             fileName: req.file.filename,
-            filePath: req.file.path
+            filePath: `uploads/${req.file.filename}`
         });
 
 

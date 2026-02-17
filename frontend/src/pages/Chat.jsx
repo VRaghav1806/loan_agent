@@ -11,16 +11,29 @@ import api from '../services/api';
 
 const Message = ({ content, role, isVoice, onAcceptOffer }) => {
     const { t } = useTranslation();
+    const [displayContent, setDisplayContent] = useState('');
+    const [originalContent, setOriginalContent] = useState('');
+    const [isTranslating, setIsTranslating] = useState(false);
+    const [translationError, setTranslationError] = useState(false);
+
+    const cleanTags = (text) => {
+        return text
+            .replace(/\[\[LOAN_OFFER:.*?\]\]/g, '')
+            .replace(/\[\[LOAN_DATA:.*?\]\]/g, '')
+            .replace(/\[\[ELIGIBILITY_RESULT:.*?\]\]/g, '')
+            .trim();
+    };
+
+    useEffect(() => {
+        const cleaned = cleanTags(content);
+        setDisplayContent(cleaned);
+        setOriginalContent(cleaned);
+    }, [content]);
+
     const isAssistant = role === 'assistant';
     const offerMatch = content.match(/\[\[LOAN_OFFER:(.*?)\]\]/);
     const dataMatch = content.match(/\[\[LOAN_DATA:(.*?)\]\]/);
     const eligibilityMatch = content.match(/\[\[ELIGIBILITY_RESULT\s*:\s*(.*?)\s*:\s*(.*?)(?:\s*:\s*(.*?))?\s*\]\]/);
-
-    const displayContent = content
-        .replace(/\[\[LOAN_OFFER:.*?\]\]/, '')
-        .replace(/\[\[LOAN_DATA:.*?\]\]/, '')
-        .replace(/\[\[ELIGIBILITY_RESULT:.*?\]\]/, '')
-        .trim();
 
     const loanId = offerMatch ? offerMatch[1] : null;
     let loanData = null;
@@ -30,14 +43,34 @@ const Message = ({ content, role, isVoice, onAcceptOffer }) => {
         console.error("Failed to parse loan data", e);
     }
 
-    const eligibilityStatus = eligibilityMatch ? eligibilityMatch[1] : null; // 'eligible' or 'ineligible'
-    const eligibilityValue = eligibilityMatch ? eligibilityMatch[2] : null; // loanId or reason
+    const eligibilityStatus = eligibilityMatch ? eligibilityMatch[1] : null;
+    const eligibilityValue = eligibilityMatch ? eligibilityMatch[2] : null;
+
+    const handleTranslate = async (targetLang) => {
+        if (isTranslating) return;
+        setIsTranslating(true);
+        setTranslationError(false);
+        try {
+            const { data } = await api.post('/chat/translate', {
+                text: originalContent,
+                targetLang
+            });
+            setDisplayContent(cleanTags(data.translatedText));
+        } catch (err) {
+            console.error('Translation failed', err);
+            setTranslationError(true);
+            setTimeout(() => setTranslationError(false), 3000);
+        } finally {
+            setIsTranslating(false);
+        }
+    };
 
     return (
         <Box sx={{
             display: 'flex',
             justifyContent: isAssistant ? 'flex-start' : 'flex-end',
-            mb: 2
+            mb: 2,
+            position: 'relative'
         }}>
             <Stack direction={isAssistant ? 'row' : 'row-reverse'} spacing={1} alignItems="flex-end">
                 <Avatar sx={{ bgcolor: isAssistant ? 'primary.main' : 'secondary.main', width: 32, height: 32 }}>
@@ -46,15 +79,66 @@ const Message = ({ content, role, isVoice, onAcceptOffer }) => {
                 <Paper
                     elevation={0}
                     sx={{
-                        p: 2,
-                        maxWidth: '80%',
+                        p: { xs: 1.5, sm: 2 },
+                        maxWidth: { xs: '85%', sm: '80%' },
                         borderRadius: isAssistant ? '20px 20px 20px 4px' : '20px 20px 4px 20px',
                         bgcolor: isAssistant ? 'white' : 'primary.main',
                         color: isAssistant ? 'text.primary' : 'white',
-                        border: isAssistant ? '1px solid #e0e0e0' : 'none'
+                        border: isAssistant ? '1px solid #e0e0e0' : 'none',
+                        position: 'relative',
+                        boxShadow: isAssistant ? '0 2px 5px rgba(0,0,0,0.05)' : 'none'
                     }}
                 >
-                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>{displayContent}</Typography>
+                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                        {isTranslating ? '...' : displayContent}
+                    </Typography>
+
+                    <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{
+                            mt: 1,
+                            justifyContent: isAssistant ? 'flex-start' : 'flex-end',
+                            opacity: 0.6,
+                            '&:hover': { opacity: 1 }
+                        }}
+                    >
+                        <Button
+                            variant="text"
+                            size="small"
+                            onClick={() => handleTranslate('en')}
+                            sx={{ minWidth: 40, fontSize: '0.75rem', p: 0.5, color: translationError ? 'error.main' : (isAssistant ? 'primary.main' : 'rgba(255,255,255,0.8)'), textTransform: 'none' }}
+                        >
+                            {isTranslating ? '...' : (translationError ? 'Error' : 'English')}
+                        </Button>
+                        <Button
+                            variant="text"
+                            size="small"
+                            onClick={() => handleTranslate('hi')}
+                            sx={{ minWidth: 40, fontSize: '0.75rem', p: 0.5, color: translationError ? 'error.main' : (isAssistant ? 'primary.main' : 'rgba(255,255,255,0.8)'), textTransform: 'none' }}
+                        >
+                            {isTranslating ? '...' : (translationError ? 'Error' : 'हिंदी')}
+                        </Button>
+                        <Button
+                            variant="text"
+                            size="small"
+                            onClick={() => handleTranslate('ta')}
+                            sx={{ minWidth: 40, fontSize: '0.75rem', p: 0.5, color: translationError ? 'error.main' : (isAssistant ? 'primary.main' : 'rgba(255,255,255,0.8)'), textTransform: 'none' }}
+                        >
+                            {isTranslating ? '...' : (translationError ? 'Error' : 'தமிழ்')}
+                        </Button>
+                        {displayContent !== originalContent && (
+                            <Button
+                                variant="text"
+                                size="small"
+                                color="secondary"
+                                onClick={() => setDisplayContent(originalContent)}
+                                sx={{ minWidth: 40, fontSize: '0.75rem', p: 0.5, textTransform: 'none', color: isAssistant ? 'secondary.main' : '#ffc107' }}
+                            >
+                                Reset
+                            </Button>
+                        )}
+                    </Stack>
 
                     {eligibilityStatus === 'eligible' && (
                         <Box sx={{ mt: 2, p: 2, bgcolor: 'success.light', color: 'white', borderRadius: 2 }}>
@@ -268,16 +352,16 @@ const Chat = () => {
     };
 
     return (
-        <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', bgcolor: '#f0f2f5' }}>
+        <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', bgcolor: '#f8fafc' }}>
             {/* Messages Area */}
-            <Box sx={{ flexGrow: 1, overflowY: 'auto', py: 4 }}>
+            <Box sx={{ flexGrow: 1, overflowY: 'auto', py: { xs: 2, md: 4 } }}>
                 <Container maxWidth="md">
                     {messages.length === 0 && (
                         <Box sx={{ textAlign: 'center', mt: 8, opacity: 0.6 }}>
                             <Avatar sx={{ width: 80, height: 80, mx: 'auto', mb: 2, bgcolor: 'primary.light' }}>
                                 <MessageSquare size={40} />
                             </Avatar>
-                            <Typography variant="h5">{t('chat.welcome') || 'Hello! I am your loan advisor.'}</Typography>
+                            <Typography variant="h5" fontWeight="800">{t('chat.welcome') || 'Hello! I am your loan advisor.'}</Typography>
                             <Typography variant="body1">{t('chat.how_can_i_help')}</Typography>
                         </Box>
                     )}
@@ -294,15 +378,19 @@ const Chat = () => {
             </Box>
 
             {/* Input Area */}
-            <Paper elevation={4} square sx={{ p: 2, borderTop: '1px solid #ddd' }}>
+            <Paper elevation={4} square sx={{ p: { xs: 1.5, md: 2 }, borderTop: '1px solid #edf2f7', bgcolor: 'white' }}>
                 <Container maxWidth="md">
-                    <Stack direction="row" spacing={2}>
+                    <Stack direction="row" spacing={{ xs: 1, md: 2 }} alignItems="center">
                         <IconButton
                             color={isRecording ? "error" : "primary"}
                             onClick={toggleRecording}
-                            sx={{ bgcolor: isRecording ? 'rgba(211, 47, 47, 0.1)' : 'rgba(26, 35, 126, 0.05)' }}
+                            sx={{
+                                bgcolor: isRecording ? 'rgba(211, 47, 47, 0.1)' : 'rgba(26, 35, 126, 0.05)',
+                                width: { xs: 40, md: 48 },
+                                height: { xs: 40, md: 48 }
+                            }}
                         >
-                            {isRecording ? <MicOff size={24} /> : <Mic size={24} />}
+                            {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
                         </IconButton>
                         <TextField
                             fullWidth
@@ -312,13 +400,24 @@ const Chat = () => {
                             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                             disabled={isRecording}
                             size="small"
-                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 8 } }}
+                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#f8fafc' } }}
                         />
-                        <IconButton color="primary" onClick={() => handleSend()} disabled={!input.trim()}>
-                            <Send size={24} />
+                        <IconButton
+                            color="primary"
+                            onClick={() => handleSend()}
+                            disabled={!input.trim()}
+                            sx={{
+                                bgcolor: input.trim() ? 'primary.main' : 'rgba(0,0,0,0.05)',
+                                color: input.trim() ? 'white !important' : 'inherit',
+                                '&:hover': { bgcolor: 'primary.dark' },
+                                width: { xs: 40, md: 48 },
+                                height: { xs: 40, md: 48 }
+                            }}
+                        >
+                            <Send size={20} />
                         </IconButton>
                     </Stack>
-                    <Typography variant="caption" sx={{ mt: 1, display: 'block', textAlign: 'center', opacity: 0.5 }}>
+                    <Typography variant="caption" sx={{ mt: 1, display: { xs: 'none', sm: 'block' }, textAlign: 'center', opacity: 0.5 }}>
                         {t('chat.voice_hint')}
                     </Typography>
                 </Container>

@@ -97,4 +97,24 @@ router.delete('/history', protect, async (req, res) => {
     }
 });
 
+// @desc    Translate a message
+// @route   POST /api/chat/translate
+// @access  Private
+router.post('/translate', protect, async (req, res) => {
+    try {
+        const { text, targetLang } = req.body;
+        console.log(`Translation Request: text="${text?.substring(0, 20)}...", targetLang="${targetLang}"`);
+
+        if (!text || !targetLang) {
+            return res.status(400).json({ message: 'Text and targetLang are required' });
+        }
+
+        const translatedText = await aiService.translateText(text, targetLang);
+        res.json({ translatedText });
+    } catch (error) {
+        console.error('Translation error:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
 module.exports = router;

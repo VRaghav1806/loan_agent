@@ -80,73 +80,85 @@ const Dashboard = () => {
     };
 
     return (
-        <Container maxWidth="lg" sx={{ py: 6 }}>
+        <Container maxWidth="lg" sx={{ py: { xs: 4, md: 8 } }}>
             <Typography variant="h4" fontWeight="800" sx={{ mb: 4 }}>
                 {t('dashboard.welcome')}
             </Typography>
 
-            <Grid container spacing={6}>
-                {/* Applications Section */}
+            <Grid container spacing={4}>
+                {/* Top Section: Active Applications */}
                 <Grid size={{ xs: 12 }}>
-                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 4 }}>
-                        <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'primary.light', color: 'white', display: 'flex' }}>
-                            <FileText size={20} />
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
+                        <Box sx={{ p: 1, borderRadius: 2, bgcolor: '#5145cd', color: 'white', display: 'flex' }}>
+                            <FileText size={20} shadow />
                         </Box>
                         <Typography variant="h5" fontWeight="800">
                             {t('dashboard.active_applications')}
                         </Typography>
                     </Stack>
 
-                    <Stack spacing={3}>
-                        {loading ? (
-                            [1, 2].map(i => <Skeleton key={i} variant="rectangular" height={120} sx={{ borderRadius: 4 }} />)
-                        ) : applications.length === 0 ? (
-                            <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 4, border: '2px dashed #e0e0e0', bgcolor: 'rgba(255,255,255,0.5)' }}>
-                                <FileText size={48} style={{ opacity: 0.1, marginBottom: 16 }} />
-                                <Typography variant="h6" color="text.secondary">{t('dashboard.no_applications')}</Typography>
-                                <Typography variant="body2" color="text.secondary">{t('dashboard.start_chat_hint')}</Typography>
-                            </Paper>
-                        ) : (
-                            applications.map(app => (
+                    {loading ? (
+                        <Stack spacing={3}>
+                            {[1, 2].map(i => (
+                                <Skeleton key={i} variant="rectangular" height={160} sx={{ borderRadius: 4 }} />
+                            ))}
+                        </Stack>
+                    ) : applications.length === 0 ? (
+                        <Paper sx={{ p: 6, textAlign: 'center', borderRadius: 4, border: '2px dashed #e0e0e0', bgcolor: 'rgba(255,255,255,0.5)' }}>
+                            <FileText size={48} style={{ opacity: 0.1, marginBottom: 16 }} />
+                            <Typography variant="h6" color="text.secondary">{t('dashboard.no_applications')}</Typography>
+                            <Typography variant="body2" color="text.secondary">{t('dashboard.start_chat_hint')}</Typography>
+                        </Paper>
+                    ) : (
+                        <Stack spacing={3}>
+                            {applications.map(app => (
                                 <Card key={app._id} elevation={0} sx={{
                                     borderRadius: 4,
                                     border: '1px solid #edf2f7',
                                     transition: 'all 0.3s ease',
-                                    '&:hover': { transform: 'translateY(-4px)', boxShadow: '0 12px 20px -5px rgba(0, 0, 0, 0.08)' }
+                                    '&:hover': { transform: 'scale(1.01)', boxShadow: '0 12px 20px -5px rgba(0, 0, 0, 0.08)' }
                                 }}>
-                                    <CardContent sx={{ p: 3 }}>
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                                            <Typography variant="h6" fontWeight="700" color="primary.dark">
+                                    <CardContent sx={{ p: { xs: 2.5, sm: 3.5 } }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5 }}>
+                                            <Typography variant="h5" fontWeight="800" color="primary.dark">
                                                 {app.loan?.name?.[i18n.language] || app.loan?.name?.en || 'N/A'}
                                             </Typography>
                                             {getStatusChip(app.status)}
                                         </Box>
 
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                                            <Typography variant="body2" fontWeight="600" sx={{ px: 1.5, py: 0.5, bgcolor: '#f1f5f9', borderRadius: 1.5 }}>
-                                                ₹{app.requestedAmount.toLocaleString()}
-                                            </Typography>
-                                            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2.5 }}>
+                                            <Box sx={{
+                                                px: 2, py: 0.75,
+                                                bgcolor: '#f1f5f9',
+                                                borderRadius: 2,
+                                                display: 'flex',
+                                                alignItems: 'center'
+                                            }}>
+                                                <Typography variant="h6" fontWeight="800" color="text.primary">
+                                                    ₹{app.requestedAmount.toLocaleString()}
+                                                </Typography>
+                                            </Box>
+                                            <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic', fontWeight: 500 }}>
                                                 {app.purpose}
                                             </Typography>
-                                        </Box>
+                                        </Stack>
 
-                                        <Divider sx={{ my: 2, opacity: 0.6 }} />
+                                        <Divider sx={{ mb: 2.5, opacity: 0.8 }} />
 
-                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                                            <Clock size={12} style={{ marginRight: 6 }} />
-                                            {t('dashboard.last_updated')} {new Date(app.updatedAt || Date.now()).toLocaleDateString()}
+                                        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', fontWeight: 500 }}>
+                                            <Clock size={14} style={{ marginRight: 8, opacity: 0.7 }} />
+                                            {t('dashboard.last_updated')}: {new Date(app.updatedAt || Date.now()).toLocaleDateString()}
                                         </Typography>
                                     </CardContent>
                                 </Card>
-                            ))
-                        )}
-                    </Stack>
+                            ))}
+                        </Stack>
+                    )}
                 </Grid>
 
-                {/* Recommended Offers Section */}
+                {/* Bottom Left: Recommended Offers */}
                 <Grid size={{ xs: 12, md: 8 }}>
-                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 4 }}>
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
                         <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'secondary.light', color: 'white', display: 'flex' }}>
                             <TrendingUp size={20} />
                         </Box>
@@ -175,7 +187,7 @@ const Dashboard = () => {
                     </Grid>
                 </Grid>
 
-                {/* News & Tips Section */}
+                {/* Bottom Right: Tips and Calculator */}
                 <Grid size={{ xs: 12, md: 4 }}>
                     <Stack spacing={4}>
                         <Box>
@@ -201,22 +213,20 @@ const Dashboard = () => {
                             </Stack>
                         </Box>
 
-                        <Box>
-                            <Paper sx={{ p: 3, borderRadius: 4, bgcolor: 'primary.main', color: 'white' }}>
-                                <Typography variant="h6" fontWeight={800} gutterBottom>{t('dashboard.plan_loan_title')}</Typography>
-                                <Typography variant="body2" sx={{ mb: 2, opacity: 0.9 }}>
-                                    {t('dashboard.plan_loan_desc')}
-                                </Typography>
-                                <Button
-                                    variant="contained"
-                                    fullWidth
-                                    onClick={() => navigate('/emi-calculator')}
-                                    sx={{ bgcolor: 'white', color: 'primary.main', '&:hover': { bgcolor: '#f0f0f0' } }}
-                                >
-                                    {t('dashboard.try_emi')}
-                                </Button>
-                            </Paper>
-                        </Box>
+                        <Paper sx={{ p: 3, borderRadius: 4, bgcolor: 'primary.main', color: 'white', position: 'relative', overflow: 'hidden' }}>
+                            <Typography variant="h6" fontWeight={800} gutterBottom>{t('dashboard.plan_loan_title')}</Typography>
+                            <Typography variant="body2" sx={{ mb: 3, opacity: 0.9 }}>
+                                {t('dashboard.plan_loan_desc')}
+                            </Typography>
+                            <Button
+                                variant="contained"
+                                fullWidth
+                                onClick={() => navigate('/emi-calculator')}
+                                sx={{ bgcolor: 'white', color: 'primary.main', fontWeight: 700, '&:hover': { bgcolor: '#f0f0f0' } }}
+                            >
+                                {t('dashboard.try_emi')}
+                            </Button>
+                        </Paper>
                     </Stack>
                 </Grid>
             </Grid>

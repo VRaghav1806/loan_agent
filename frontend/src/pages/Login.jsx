@@ -39,8 +39,8 @@ const Login = ({ role: initialRole }) => {
     };
 
     return (
-        <Container maxWidth="sm" sx={{ py: 12 }}>
-            <Paper elevation={0} sx={{ p: 5, border: '1px solid #eee' }}>
+        <Container maxWidth="sm" sx={{ py: { xs: 6, md: 12 }, px: { xs: 2, sm: 3 } }}>
+            <Paper elevation={0} sx={{ p: { xs: 3, md: 5 }, border: '1px solid #eee', borderRadius: 4 }}>
                 <Typography variant="h4" fontWeight="800" textAlign="center" gutterBottom color="primary">
                     {formData.role === 'agent' ? t('auth.agent_portal') : t('auth.borrower_portal')}
                 </Typography>

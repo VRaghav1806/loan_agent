@@ -62,10 +62,10 @@ const LoanComparison = () => {
     );
 
     return (
-        <Container maxWidth="lg" sx={{ py: 6 }}>
+        <Container maxWidth="lg" sx={{ py: { xs: 4, md: 8 } }}>
             <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 4 }}>
-                <ArrowLeftRight size={32} color="#1a237e" />
-                <Typography variant="h4" fontWeight={900} sx={{ color: 'primary.main' }}>
+                <ArrowLeftRight size={32} color="#1a237e" style={{ display: { xs: 'none', sm: 'block' } }} />
+                <Typography variant="h4" fontWeight={900} sx={{ color: 'primary.main', fontSize: { xs: '1.75rem', md: '2.125rem' } }}>
                     {t('comparison.title')}
                 </Typography>
             </Stack>

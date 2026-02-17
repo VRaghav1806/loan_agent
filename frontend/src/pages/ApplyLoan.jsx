@@ -249,16 +249,29 @@ const ApplyLoan = () => {
     };
 
     return (
-        <Container maxWidth="sm" sx={{ py: 6 }}>
-            <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid #edf2f7' }}>
-                <Typography variant="h4" fontWeight="800" align="center" gutterBottom color="primary">
+        <Container maxWidth="sm" sx={{ py: { xs: 4, md: 8 }, px: { xs: 2, sm: 3 } }}>
+            <Paper elevation={0} sx={{ p: { xs: 3, sm: 4 }, borderRadius: 4, border: '1px solid #edf2f7' }}>
+                <Typography variant="h4" fontWeight="900" align="center" gutterBottom color="primary.main" sx={{ fontSize: { xs: '1.75rem', md: '2.125rem' } }}>
                     {t('apply.title')}
                 </Typography>
-                <Typography variant="body1" align="center" color="text.secondary" sx={{ mb: 4 }}>
+                <Typography variant="body1" align="center" color="text.secondary" sx={{ mb: 4, fontWeight: 500 }}>
                     {loan?.name?.[i18n.language] || loan?.name?.en}
                 </Typography>
 
-                <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 6 }}>
+                <Stepper
+                    activeStep={activeStep}
+                    alternativeLabel={false}
+                    sx={{
+                        mb: { xs: 4, md: 6 },
+                        '& .MuiStepLabel-label': {
+                            fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                            display: { xs: 'none', sm: 'block' }
+                        },
+                        '& .MuiStep-root': {
+                            px: { xs: 1, sm: 2 }
+                        }
+                    }}
+                >
                     {steps.map((label) => <Step key={label}><StepLabel>{label}</StepLabel></Step>)}
                 </Stepper>
 

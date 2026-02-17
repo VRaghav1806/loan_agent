@@ -44,7 +44,8 @@ class AIService {
         }
 
         try {
-            const groqResponse = await this.getGroqResponse(text, lang, history, context);
+            const detectedScript = this.detectScript(text);
+            const groqResponse = await this.getGroqResponse(text, lang, history, context, detectedScript);
             return groqResponse;
         } catch (error) {
             console.error("Groq Error:", error.message);
@@ -81,7 +82,21 @@ class AIService {
         }
     }
 
-    async getGroqResponse(text, lang, history, context) {
+    /**
+     * Detects if the text contains Tamil or Hindi scripts.
+     * @param {string} text 
+     * @returns {string|null} - 'ta' for Tamil script, 'hi' for Devanagari (Hindi), or null
+     */
+    detectScript(text) {
+        const tamilRegex = /[\u0B80-\u0BFF]/;
+        const devanagariRegex = /[\u0900-\u097F]/;
+
+        if (tamilRegex.test(text)) return 'ta';
+        if (devanagariRegex.test(text)) return 'hi';
+        return null;
+    }
+
+    async getGroqResponse(text, lang, history, context, detectedScript = null) {
         const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
         const availableLoans = await Loan.find({ isActive: true });
         const loanContext = availableLoans.map(l => {
@@ -100,12 +115,16 @@ class AIService {
 
         const systemPrompt = `You are a helpful and professional Loan Advisor for "LoanAdvisor".
         User language: ${lang}.
+        Input Script: ${detectedScript === 'ta' ? 'Tamil' : (detectedScript === 'hi' ? 'Hindi/Devanagari' : 'Latin/English')}.
         
         LANGUAGE RULES:
-        1. If lang is 'ta' (Tamil), use "Tunglish" style: Natural Tamil mixed with common English loan-related terms (e.g., "Home Loan apply panna", "Interest Rate evvalavu?").
-        2. If lang is 'hi' (Hindi), use "Hinglish" style: Natural Hindi mixed with common English loan-related terms (e.g., "aapka Credit Score kya hai?", "Personal Loan options dekhiye").
-        3. If lang is 'en' (English), use clear and professional English.
-        4. ALWAYS use English for technical terms: Loan IDs, Statuses, Document names (Identity Proof, Address Proof), and specific loan names (Personal Loan, Vehicle Loan) to ensure clarity.
+        1. If Input Script is 'Tamil', respond ONLY in Tamil script (e.g., "வணக்கம்..."). Do not use Tunglish.
+        2. If Input Script is 'Hindi/Devanagari', respond ONLY in Hindi script (e.g., "नमस्ते..."). Do not use Hinglish.
+        3. If Input Script is 'Latin/English':
+           - If lang is 'ta' (Tamil), use "Tunglish" style: Natural Tamil mixed with common English terms.
+           - If lang is 'hi' (Hindi), use "Hinglish" style: Natural Hindi mixed with common English terms.
+           - If lang is 'en' (English), use clear professional English.
+        4. ALWAYS use English for technical terms: Loan IDs, Statuses, Document names (Identity Proof, Address Proof), and specific loan names (Personal Loan, Vehicle Loan) to ensure clarity, even when writing in Tamil or Hindi script.
         5. Match the user's tone and complexity.
         
         GOAL: Collect details concisely and check eligibility.
@@ -156,6 +175,41 @@ class AIService {
                 currentIntent: "ai_handled"
             }
         };
+    }
+
+    async translateText(text, targetLang) {
+        if (!groq) {
+            throw new Error('AI Service is not configured (missing GROQ_API_KEY)');
+        }
+
+        const langNames = {
+            'en': 'English',
+            'ta': 'Tamil script',
+            'hi': 'Hindi/Devanagari script'
+        };
+
+        const targetLangName = langNames[targetLang] || 'English';
+
+        const messages = [
+            {
+                role: "system",
+                content: `You are a translator. Translate the given text to ${targetLangName}. 
+                Keep the tone professional. If there are any MongoDB IDs or specialized tags like [[LOAN_OFFER:id]] or [[ELIGIBILITY_RESULT:status:id]], keep them EXACTLY as they are.
+                Provide ONLY the translated text.`
+            },
+            { role: "user", content: text }
+        ];
+
+        const chatCompletion = await groq.chat.completions.create({
+            messages: messages,
+            model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+            temperature: 0.3,
+            max_tokens: 1024,
+            top_p: 1,
+            stream: false
+        });
+
+        return chatCompletion.choices[0].message.content.trim();
     }
 }
 

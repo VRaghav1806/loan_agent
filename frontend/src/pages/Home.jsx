@@ -25,22 +25,22 @@ const Home = () => {
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: '#f8fafc' }}>
             {/* Hero Section */}
-            <Box sx={{ py: 12, background: 'linear-gradient(135deg, #1a237e 0%, #311b92 100%)', color: 'white' }}>
+            <Box sx={{ py: { xs: 8, md: 12 }, background: 'linear-gradient(135deg, #1a237e 0%, #311b92 100%)', color: 'white' }}>
                 <Container maxWidth="md" sx={{ textAlign: 'center' }}>
-                    <Typography variant="h2" component="h1" gutterBottom fontWeight="900" sx={{ mb: 4 }}>
+                    <Typography variant="h2" component="h1" gutterBottom sx={{ mb: 4, px: 2 }}>
                         {t('common.welcome')} {t('common.app_name')}
                     </Typography>
-                    <Typography variant="h5" sx={{ mb: 6, opacity: 0.9, fontWeight: 400 }}>
+                    <Typography variant="h5" sx={{ mb: 6, opacity: 0.9, fontWeight: 400, px: 2 }}>
                         {t('home.hero_subtitle')}
                     </Typography>
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} justifyContent="center" sx={{ mt: 4 }}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} justifyContent="center" sx={{ mt: 4, px: { xs: 4, sm: 0 } }}>
                         <Button
                             component={RouterLink}
                             to="/borrower/login"
                             variant="contained"
                             size="large"
                             color="secondary"
-                            sx={{ px: 4, py: 1.5, fontSize: '1rem', borderRadius: 3 }}
+                            sx={{ px: { xs: 3, md: 4 }, py: 1.5, fontSize: '1rem', borderRadius: 3 }}
                         >
                             {t('home.borrower_login')}
                         </Button>
@@ -49,7 +49,7 @@ const Home = () => {
                             to="/agent/login"
                             variant="contained"
                             size="large"
-                            sx={{ px: 4, py: 1.5, fontSize: '1rem', borderRadius: 3, bgcolor: 'white', color: 'primary.main', '&:hover': { bgcolor: '#f0f0f0' } }}
+                            sx={{ px: { xs: 3, md: 4 }, py: 1.5, fontSize: '1rem', borderRadius: 3, bgcolor: 'white', color: 'primary.main', '&:hover': { bgcolor: '#f0f0f0' } }}
                         >
                             {t('home.agent_login')}
                         </Button>
@@ -58,7 +58,7 @@ const Home = () => {
                             to="/education"
                             variant="outlined"
                             size="large"
-                            sx={{ px: 4, py: 1.5, fontSize: '1rem', borderRadius: 3, color: 'white', borderColor: 'rgba(255,255,255,0.5)' }}
+                            sx={{ px: { xs: 3, md: 4 }, py: 1.5, fontSize: '1rem', borderRadius: 3, color: 'white', borderColor: 'rgba(255,255,255,0.5)' }}
                         >
                             {t('home.learn_more')}
                         </Button>
