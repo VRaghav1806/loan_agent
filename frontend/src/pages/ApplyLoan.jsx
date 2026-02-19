@@ -11,7 +11,12 @@ import api from '../services/api';
 
 const ApplyLoan = () => {
     const { t, i18n } = useTranslation();
-    const steps = [t('apply.step_basic'), t('apply.step_financials'), t('apply.step_collateral'), t('apply.step_documents')];
+    const steps = [
+        t('apply.step_basic'),
+        t('apply.step_financials'),
+        t('apply.step_collateral'),
+        t('apply.step_documents')
+    ];
     const { loanId } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
@@ -30,6 +35,7 @@ const ApplyLoan = () => {
         purpose: prefilledData.purpose || '',
         monthlyIncome: prefilledData.monthlyIncome || prefilledData.income || '',
         creditScore: prefilledData.creditScore || '',
+        aadharNumber: '',
         hasCollateral: false,
         collateralDetails: '',
         requirementsMet: {
@@ -156,6 +162,19 @@ const ApplyLoan = () => {
                                 fullWidth label={t('apply.age')} type="number"
                                 value={formData.borrowerAge}
                                 onChange={(e) => setFormData({ ...formData, borrowerAge: e.target.value })}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12 }}>
+                            <TextField
+                                fullWidth label={t('apply.aadhar_number')}
+                                placeholder={t('apply.aadhar_placeholder')}
+                                value={formData.aadharNumber}
+                                onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, '').substring(0, 12);
+                                    setFormData({ ...formData, aadharNumber: val });
+                                }}
+                                error={formData.aadharNumber.length > 0 && formData.aadharNumber.length !== 12}
+                                helperText={formData.aadharNumber.length > 0 && formData.aadharNumber.length !== 12 ? t('apply.aadhar_invalid') : ''}
                             />
                         </Grid>
                         <Grid size={{ xs: 12, md: 6 }}>

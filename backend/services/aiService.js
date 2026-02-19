@@ -48,9 +48,18 @@ class AIService {
             const groqResponse = await this.getGroqResponse(text, lang, history, context, detectedScript);
             return groqResponse;
         } catch (error) {
-            console.error("Groq Error:", error.message);
+            console.error("AI Service Error:", error.message || error);
 
-            // Fallback to rules if Groq service is unavailable
+            // If it's a rate limit error, provide a specific helpful message
+            if (error.status === 429) {
+                return {
+                    content: "I'm currently receiving too many requests. Please wait a few minutes before trying again. I'll be ready to help you shortly!",
+                    role: 'assistant',
+                    context
+                };
+            }
+
+            // Fallback to rules if Groq service is unavailable or generic error
             const mappings = {
                 greeting: {
                     keywords: ['hello', 'hi', 'namaste', 'vanakkam', 'hey', 'नमस्ते', 'வணக்கம்'],
@@ -75,7 +84,7 @@ class AIService {
             }
 
             return {
-                content: "I'm having trouble connecting to my AI brain at the moment. Please try again in a minute.",
+                content: i18next.t('ai_brain_trouble') || "I'm having trouble connecting to my AI brain at the moment. Please try again in a minute.",
                 role: 'assistant',
                 context
             };
@@ -99,58 +108,49 @@ class AIService {
     async getGroqResponse(text, lang, history, context, detectedScript = null) {
         const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
         const availableLoans = await Loan.find({ isActive: true });
+
+        // Optimize loan context: If user has identified an intent, focus on relevant info.
+        // Otherwise, provide a very concise summary.
         const loanContext = availableLoans.map(l => {
             const crit = l.eligibilityCriteria;
-            return `
-            - Name: ${l.name.en}
-            - ID: ${l._id}
-            - Type: ${l.loanType}
-            - Description: ${l.description.en}
-            - Amount: ₹${l.loanAmount.min} - ₹${l.loanAmount.max}
-            - Interest: ${l.interestRate.min}% - ${l.interestRate.max}%
-            - Eligibility: Min Age ${crit.minAge}, Max Age ${crit.maxAge}, Min Income ₹${crit.minIncome}, Min Credit Score ${crit.minCreditScore}.
-            - Documents Required: ${l.requiredDocuments.map(d => d.en).join(', ')}
-            `;
+            return `[${l.name.en} (ID: ${l._id})]: MinAge:${crit.minAge}, MinInc:₹${crit.minIncome}, MinCredit:${crit.minCreditScore}. Amount:₹${l.loanAmount.min}-₹${l.loanAmount.max}. Types:${l.loanType}.`;
         }).join('\n');
 
-        const systemPrompt = `You are a helpful and professional Loan Advisor for "LoanAdvisor".
-        User language: ${lang}.
-        Input Script: ${detectedScript === 'ta' ? 'Tamil' : (detectedScript === 'hi' ? 'Hindi/Devanagari' : 'Latin/English')}.
+        const systemPrompt = `You are a professional Loan Advisor for "LoanAdvisor".
+        User language: ${lang}. Current script detected: ${detectedScript || 'Latin'}.
         
-        LANGUAGE RULES:
-        1. If Input Script is 'Tamil', respond ONLY in Tamil script (e.g., "வணக்கம்..."). Do not use Tunglish.
-        2. If Input Script is 'Hindi/Devanagari', respond ONLY in Hindi script (e.g., "नमस्ते..."). Do not use Hinglish.
-        3. If Input Script is 'Latin/English':
-           - If lang is 'ta' (Tamil), use "Tunglish" style: Natural Tamil mixed with common English terms.
-           - If lang is 'hi' (Hindi), use "Hinglish" style: Natural Hindi mixed with common English terms.
-           - If lang is 'en' (English), use clear professional English.
-        4. ALWAYS use English for technical terms: Loan IDs, Statuses, Document names (Identity Proof, Address Proof), and specific loan names (Personal Loan, Vehicle Loan) to ensure clarity, even when writing in Tamil or Hindi script.
-        5. Match the user's tone and complexity.
+        STRICT LANGUAGE RULES:
+        1. If user language is 'en', respond ONLY in 100% PURE, PROFESSIONAL ENGLISH. 
+           - NO Hinglish, NO mixing, NO Hindi grammar. 
+        2. If user language is 'hi', respond in PURE HINDI (Devanagari script).
+        3. If user language is 'ta', respond in PURE TAMIL script.
         
-        GOAL: Collect details concisely and check eligibility.
-        
-        FLOW:
-        1. If user hasn't picked a loan: Ask them to pick one from the list (Personal, Home, Education, Business, Vehicle, etc.).
-        2. Once picked: Ask for (Age, Monthly Income, CIBIL Score) in ONE message.
-        3. Once provided: Calculate eligibility and output verdict.
-        
-        RULES:
-        - KEEP CONVERSATIONS SHORT. Max 2-3 exchanges to reach a verdict.
-        - DO NOT give long financial advice unless asked.
-        
-        CRITICAL TAGS (MUST INCLUDE):
-        - If ELIGIBLE: [[ELIGIBILITY_RESULT:eligible:LOAN_ID]]
-          (Replace LOAN_ID with the actual MongoDB _ID from the database below)
-        - If NOT ELIGIBLE: [[ELIGIBILITY_RESULT:ineligible:REASON]]
+        FUNCTIONAL RULES & VERDICTS:
+        1. FLOW: Pick loan -> Ask for (Age, Income, CIBIL) -> Give Verdict.
+        2. INTERNAL TAGS (Hidden from user):
+           - LOAN IDENTIFICATION: When discussing a specific loan, append [[LOAN_OFFER:LOAN_ID]] so the UI can link it.
+           - ELIGIBILITY VERDICTS: At the end of a decision message, use:
+             - [[ELIGIBILITY_RESULT:eligible:LOAN_ID]]
+             - [[ELIGIBILITY_RESULT:ineligible:REASON:IMPROVEMENT_TIPS]]
+        3. VERDICT MINIMIZATION (Eligible): If the user is ELIGIBLE, keep your text response extremely short (maximum one sentence).
+        4. CONSTRUCTIVE FEEDBACK (Ineligible): If the user is INELIGIBLE, provide a clear REASON and actionable IMPROVEMENT_TIPS. 
+           - Example tips: "Increase monthly savings", "Improve CIBIL score to 750+".
+        5. BE CONSISTENT: Use ONLY the tags above. DO NOT create new tags like LOAN_ID or DATA_ID.
+        6. TECHNICAL TERMS: IDs and tags MUST remain in English.
 
-        Available Loan Products:
-        ${loanContext}
+        Loan Products for Context:
+        ${loanContext}`;
 
-        Current Context Status: ${context.currentIntent || 'greeting_stage'}`;
+        // Truncate history to last 6 messages to save tokens
+        const maxHistory = 6;
+        const truncatedHistory = (history || []).slice(-maxHistory);
 
         const messages = [
             { role: "system", content: systemPrompt },
-            ...(history || []).map(msg => ({ role: (msg.role === 'assistant' ? 'assistant' : 'user'), content: msg.content })),
+            ...truncatedHistory.map(msg => ({
+                role: (msg.role === 'assistant' ? 'assistant' : 'user'),
+                content: msg.content
+            })),
             { role: "user", content: text }
         ];
 
@@ -158,23 +158,35 @@ class AIService {
             throw new Error('AI Service is not configured (missing GROQ_API_KEY)');
         }
 
-        const chatCompletion = await groq.chat.completions.create({
-            messages: messages,
-            model: model,
-            temperature: 0.5,
-            max_tokens: 1024,
-            top_p: 1,
-            stream: false
-        });
+        try {
+            const chatCompletion = await groq.chat.completions.create({
+                messages: messages,
+                model: model,
+                temperature: 0.5,
+                max_tokens: 1024,
+                top_p: 1,
+                stream: false
+            });
 
-        return {
-            content: chatCompletion.choices[0].message.content,
-            role: 'assistant',
-            context: {
-                ...context,
-                currentIntent: "ai_handled"
+            return {
+                content: chatCompletion.choices[0].message.content,
+                role: 'assistant',
+                context: {
+                    ...context,
+                    currentIntent: "ai_handled"
+                }
+            };
+        } catch (error) {
+            if (error.status === 429) {
+                // Return a specific object that the processMessage catch block will pass through or handle
+                throw {
+                    status: 429,
+                    message: "Rate limit reached. Please try again after some time.",
+                    originalError: error
+                };
             }
-        };
+            throw error;
+        }
     }
 
     async translateText(text, targetLang) {
@@ -210,6 +222,59 @@ class AIService {
         });
 
         return chatCompletion.choices[0].message.content.trim();
+    }
+
+    /**
+     * Generate improvement tips for a rejected loan application
+     * @param {Object} application - The rejected application
+     * @returns {Promise<Object>} - Improvement tips in multiple languages
+     */
+    async generateImprovementTips(application) {
+        if (!groq) return null;
+
+        const systemPrompt = `You are a helpful Financial Health Coach for rural and low-income borrowers.
+        A loan application was rejected. Your task is to analyze the reasons and provide 3 actionable, encouraging tips on how the user can improve their eligibility in the next 3-6 months.
+        Focus on:
+        1. Financial discipline (savings, reducing existing debt).
+        2. Eligibility criteria (income vs requested amount).
+        
+        Provide the response in the following JSON format:
+        {
+            "en": "concise tips in English",
+            "hi": "concise tips in Hindi",
+            "ta": "concise tips in Tamil"
+        }
+        Keep each language's content under 250 characters. Be encouraging.`;
+
+        const userContext = `
+        Requested Amount: ₹${application.requestedAmount}
+        Monthly Income: ₹${application.monthlyIncome}
+        CIBIL Score: ${application.creditScore}
+        Age: ${application.borrowerAge}
+        Status: ${application.status}
+        Eligibility Details: ${JSON.stringify(application.eligibilityDetails)}
+        `;
+
+        try {
+            const completion = await groq.chat.completions.create({
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userContext }
+                ],
+                model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+                response_format: { type: "json_object" },
+                temperature: 0.7
+            });
+
+            return JSON.parse(completion.choices[0].message.content);
+        } catch (error) {
+            console.error('Error generating improvement tips:', error);
+            return {
+                en: "Improve your savings and ensure timely mobile recharges to boost your score.",
+                hi: "अपनी बचत में सुधार करें और अपना स्कोर बढ़ाने के लिए समय पर मोबाइल रिचार्ज सुनिश्चित करें।",
+                ta: "உங்கள் சேமிப்பை மேம்படுத்தவும் மற்றும் உங்கள் மதிப்பெண்ணை அதிகரிக்க சரியான நேரத்தில் மொபைல் ரீசார்ஜ் செய்வதை உறுதி செய்யவும்."
+            };
+        }
     }
 }
 

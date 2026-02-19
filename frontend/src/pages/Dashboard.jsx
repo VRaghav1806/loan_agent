@@ -149,6 +149,22 @@ const Dashboard = () => {
                                             <Clock size={14} style={{ marginRight: 8, opacity: 0.7 }} />
                                             {t('dashboard.last_updated')}: {new Date(app.updatedAt || Date.now()).toLocaleDateString()}
                                         </Typography>
+
+                                        {app.status === 'rejected' && app.improvementTips && (
+                                            <Box sx={{ mt: 2.5, p: 2, borderRadius: 3, bgcolor: 'error.main', color: 'error.contrastText' }}>
+                                                <Stack direction="row" spacing={1} alignItems="flex-start">
+                                                    <Info size={18} style={{ marginTop: 2 }} />
+                                                    <Box>
+                                                        <Typography variant="subtitle2" fontWeight="800">
+                                                            {t('dashboard.how_to_improve')}
+                                                        </Typography>
+                                                        <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                                                            {app.improvementTips[i18n.language] || app.improvementTips.en}
+                                                        </Typography>
+                                                    </Box>
+                                                </Stack>
+                                            </Box>
+                                        )}
                                     </CardContent>
                                 </Card>
                             ))}

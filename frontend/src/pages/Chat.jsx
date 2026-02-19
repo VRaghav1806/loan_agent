@@ -18,9 +18,7 @@ const Message = ({ content, role, isVoice, onAcceptOffer }) => {
 
     const cleanTags = (text) => {
         return text
-            .replace(/\[\[LOAN_OFFER:.*?\]\]/g, '')
-            .replace(/\[\[LOAN_DATA:.*?\]\]/g, '')
-            .replace(/\[\[ELIGIBILITY_RESULT:.*?\]\]/g, '')
+            .replace(/\[\[.*?\]\]/g, '')
             .trim();
     };
 
@@ -158,21 +156,22 @@ const Message = ({ content, role, isVoice, onAcceptOffer }) => {
                     {eligibilityStatus === 'ineligible' && (
                         <Box sx={{ mt: 2, p: 2, bgcolor: 'error.light', color: 'white', borderRadius: 2 }}>
                             <Typography variant="subtitle2" fontWeight="700">{t('chat.ineligible_title')}</Typography>
-                            <Typography variant="body2">{eligibilityValue}</Typography>
+                            <Typography variant="body2" sx={{ opacity: 0.9 }}>{eligibilityValue}</Typography>
+
+                            {eligibilityMatch[3] && (
+                                <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid rgba(255,255,255,0.3)' }}>
+                                    <Typography variant="subtitle2" fontWeight="700" sx={{ mb: 0.5 }}>
+                                        {t('dashboard.how_to_improve')}
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ fontStyle: 'italic', opacity: 0.9 }}>
+                                        {eligibilityMatch[3]}
+                                    </Typography>
+                                </Box>
+                            )}
                         </Box>
                     )}
 
-                    {loanId && !eligibilityStatus && (
-                        <Button
-                            variant="contained"
-                            color="success"
-                            size="small"
-                            sx={{ mt: 2, borderRadius: 2 }}
-                            onClick={() => onAcceptOffer(loanId, loanData)}
-                        >
-                            {t('chat.accept_apply')}
-                        </Button>
-                    )}
+                    {/* Removed premature accept button for initial offers per user request */}
                 </Paper>
             </Stack>
         </Box>

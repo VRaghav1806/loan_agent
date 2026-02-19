@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import {
     Users, TrendingUp, CheckCircle, Clock, Plus, ExternalLink,
-    MessageSquare, BadgeCheck, Trash2, FileText
+    MessageSquare, BadgeCheck, Trash2, FileText, AlertCircle, RefreshCw
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -487,6 +487,28 @@ const AgentDashboard = () => {
                                     <Typography variant="body2">Age: {selectedApplication.borrowerAge}</Typography>
                                     <Typography variant="body2">Monthly Income: ₹{selectedApplication.monthlyIncome?.toLocaleString()}</Typography>
                                     <Typography variant="body2">Credit Score: {selectedApplication.creditScore}</Typography>
+                                    {selectedApplication.aadharNumber && (
+                                        <>
+                                            <Divider sx={{ my: 1.5 }} />
+                                            <Stack direction="row" spacing={1} alignItems="center">
+                                                <Typography variant="body2" fontWeight="600">Aadhar: {selectedApplication.aadharNumber}</Typography>
+                                                {selectedApplication.aadharVerification?.status === 'matched' && (
+                                                    <Chip icon={<BadgeCheck size={14} />} label="Matched" color="success" size="small" />
+                                                )}
+                                                {selectedApplication.aadharVerification?.status === 'mismatch' && (
+                                                    <Chip icon={<AlertCircle size={14} />} label="Mismatch" color="error" size="small" />
+                                                )}
+                                                {selectedApplication.aadharVerification?.status === 'pending' && (
+                                                    <Chip icon={<RefreshCw size={14} className="animate-spin" />} label="Verifying..." color="warning" size="small" />
+                                                )}
+                                                {selectedApplication.aadharVerification?.status === 'error' && (
+                                                    <Tooltip title={selectedApplication.aadharVerification?.errorMessage || 'Verification failed'}>
+                                                        <Chip icon={<AlertCircle size={14} />} label="Error" color="default" size="small" />
+                                                    </Tooltip>
+                                                )}
+                                            </Stack>
+                                        </>
+                                    )}
                                 </Paper>
                             </Grid>
 

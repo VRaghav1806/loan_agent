@@ -23,7 +23,7 @@ const calculateEligibility = (userProfile, loanCriteria) => {
         creditScore: {
             isEligible: userProfile.creditScore >= loanCriteria.minCreditScore,
             message: userProfile.creditScore < loanCriteria.minCreditScore
-                ? `Minimum credit score required is ${loanCriteria.minCreditScore}`
+                ? `Minimum credit score required is ${loanCriteria.minCreditScore}.`
                 : 'Credit score is healthy'
         },
         employment: {
@@ -48,7 +48,7 @@ const calculateEligibility = (userProfile, loanCriteria) => {
     if (details.age.isEligible) score += 10;
     if (details.existingLoans.isEligible) score += 5;
 
-    // Strict eligibility: Income and Credit Score are non-negotiable
+    // Strict eligibility: Income, Credit Score and Age are non-negotiable
     const isEligible = details.income.isEligible && details.creditScore.isEligible && details.age.isEligible;
 
     return {
@@ -58,7 +58,7 @@ const calculateEligibility = (userProfile, loanCriteria) => {
         status: isEligible ? 'Eligible' : 'Not Eligible',
         recommendation: isEligible
             ? 'You have a high chance of approval! Proceed to apply.'
-            : 'We recommend improving your financial profile before applying.'
+            : 'We recommend improving your financial regularity or credit score before applying.'
     };
 };
 

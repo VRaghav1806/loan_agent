@@ -7,17 +7,26 @@ const { sendLoanApprovalEmail } = require('../services/emailService');
 
 
 const { protect } = require('../middleware/auth');
+const { calculateEligibility } = require('../services/eligibilityService');
+const aiService = require('../services/aiService');
+const { verifyAadhar } = require('../services/verificationService');
 const multer = require('multer');
 const path = require('path');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 // Cloudinary Configuration
+if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    console.warn('WARNING: Cloudinary environment variables are missing. Uploads will fail.');
+}
+
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
+
+console.log('Cloudinary Config initialized for:', process.env.CLOUDINARY_CLOUD_NAME || 'MISSING');
 
 // Create Cloudinary storage engine
 const storage = new CloudinaryStorage({
@@ -39,7 +48,7 @@ router.post('/', protect, async (req, res) => {
         const {
             loanId, requestedAmount, requestedTenure, purpose,
             borrowerAge, monthlyIncome, creditScore,
-            hasCollateral, collateralDetails, requirementsMet
+            hasCollateral, collateralDetails, requirementsMet, aadharNumber
         } = req.body;
 
         if (!mongoose.Types.ObjectId.isValid(loanId)) {
@@ -52,8 +61,15 @@ router.post('/', protect, async (req, res) => {
             return res.status(404).json({ message: 'Loan product not found' });
         }
 
-        // All new applications now go to 'submitted' for manual review
-        const crit = loanData.eligibilityCriteria;
+        // Use enhanced eligibility service
+        const eligibility = calculateEligibility({
+            age: borrowerAge,
+            monthlyIncome,
+            creditScore,
+            employmentStatus: req.user.financialProfile?.employmentStatus || 'employed',
+            existingLoans: req.user.financialProfile?.existingLoans || 0
+        }, loanData.eligibilityCriteria);
+
         const application = await LoanApplication.create({
             user: req.user._id,
             loan: loanId,
@@ -66,13 +82,15 @@ router.post('/', protect, async (req, res) => {
             hasCollateral,
             collateralDetails,
             requirementsMet,
+            aadharNumber,
             status: 'submitted', // Manual review required
+            eligibilityScore: eligibility.score,
             eligibilityDetails: {
-                ageEligible: borrowerAge >= crit.minAge && (crit.maxAge ? borrowerAge <= crit.maxAge : true),
-                incomeEligible: monthlyIncome >= crit.minIncome,
-                creditScoreEligible: creditScore >= (crit.minCreditScore || 0),
-                employmentEligible: true,
-                existingLoansEligible: true
+                ageEligible: eligibility.details.age.isEligible,
+                incomeEligible: eligibility.details.income.isEligible,
+                creditScoreEligible: eligibility.details.creditScore.isEligible,
+                employmentEligible: eligibility.details.employment.isEligible,
+                existingLoansEligible: eligibility.details.existingLoans.isEligible
             }
         });
 
@@ -98,7 +116,7 @@ router.put('/:id/status', protect, async (req, res) => {
         }
 
         const application = await LoanApplication.findById(req.params.id)
-            .populate('user', 'name email phone')
+            .populate('user', 'name email phone financialProfile')
             .populate('loan', 'name interestRate');
 
         if (!application) {
@@ -111,6 +129,14 @@ router.put('/:id/status', protect, async (req, res) => {
                 message: remarks,
                 createdBy: req.user.name || req.user.email
             });
+        }
+
+        // Generate AI improvement tips if rejected
+        if (status === 'rejected') {
+            const tips = await aiService.generateImprovementTips(application);
+            if (tips) {
+                application.improvementTips = tips;
+            }
         }
 
         await application.save();
@@ -174,6 +200,13 @@ router.post('/:id/upload', protect, upload.single('document'), async (req, res) 
 
 
         await application.save();
+
+        // Trigger Aadhar verification if document type is identity
+        if (req.body.documentType === 'identity' && application.aadharNumber) {
+            // Run verification asynchronously to not block the upload response
+            verifyAadhar(application._id, req.file.path, application.aadharNumber);
+        }
+
         res.json(application);
     } catch (error) {
         res.status(500).json({ message: error.message });

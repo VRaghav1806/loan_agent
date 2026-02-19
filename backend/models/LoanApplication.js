@@ -39,6 +39,20 @@ const loanApplicationSchema = new mongoose.Schema({
         default: false
     },
     collateralDetails: String,
+    aadharNumber: {
+        type: String,
+        trim: true
+    },
+    aadharVerification: {
+        status: {
+            type: String,
+            enum: ['pending', 'matched', 'mismatch', 'error'],
+            default: 'pending'
+        },
+        extractedAadhar: String,
+        verifiedAt: Date,
+        errorMessage: String
+    },
     requirementsMet: {
         identityVerified: { type: Boolean, default: false },
         addressVerified: { type: Boolean, default: false },
@@ -78,6 +92,11 @@ const loanApplicationSchema = new mongoose.Schema({
             default: Date.now
         }
     }],
+    improvementTips: {
+        en: String,
+        hi: String,
+        ta: String
+    },
     approvedAmount: Number,
     approvedTenure: Number,
     interestRate: Number,
