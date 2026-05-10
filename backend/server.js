@@ -7,10 +7,22 @@ const path = require('path');
 // Load environment variables
 dotenv.config();
 
-// Connect to Database
-connectDB().catch(err => console.error('Database pre-connect failed:', err));
-
 const app = express();
+
+// Database connection middleware (important for serverless)
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (err) {
+        console.error('Database middleware error:', err);
+        res.status(500).json({ 
+            message: 'Database connection failed', 
+            details: err.message 
+        });
+    }
+});
+
 
 // Init Middleware
 app.use(cors());

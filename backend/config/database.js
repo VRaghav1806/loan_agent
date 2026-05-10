@@ -1,22 +1,48 @@
 const mongoose = require('mongoose');
 
+// Cache the database connection across serverless function calls
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
 const connectDB = async () => {
   if (!process.env.MONGODB_URI) {
     console.error('CRITICAL: MONGODB_URI is not defined in environment variables.');
     return;
   }
-  try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+
+  // Set global options
+  mongoose.set('bufferCommands', false); // Disable buffering to fail fast if not connected
+
+  if (cached.conn) {
+    return cached.conn;
+  }
+
+  if (!cached.promise) {
+    const opts = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of hanging
+      serverSelectionTimeoutMS: 5000,
+    };
+
+    cached.promise = mongoose.connect(process.env.MONGODB_URI, opts).then((mongoose) => {
+      console.log(`MongoDB Connected: ${mongoose.connection.host}`);
+      return mongoose;
     });
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
-  } catch (error) {
-    console.error(`MongoDB connection error: ${error.message}`);
-    // In serverless, we don't want to crash the whole process on connection failure
-    // but rather return error responses from routes that need it.
   }
+
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    console.error(`MongoDB connection error: ${e.message}`);
+    throw e;
+  }
+
+  return cached.conn;
 };
 
 module.exports = connectDB;
+
